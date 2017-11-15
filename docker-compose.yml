@@ -1,0 +1,13 @@
+version: '2'
+services:
+  development:
+    image: "android-react-native:latest"
+    container_name: kpo_react_native_app
+    privileged: true
+    network_mode: "host"
+    volumes:
+        - "/dev/bus/usb:/dev/bus/usb"
+        - ./src:/app
+        - "${HOME}:/userdata"
+volumes:
+    devdata:
