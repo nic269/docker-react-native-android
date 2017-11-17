@@ -18,16 +18,20 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
 RUN dpkg --add-architecture i386 && \
     apt-get update -q && \
     apt-get install -qy --no-install-recommends libc6:i386 libstdc++6:i386 libgcc1:i386 zlib1g:i386 libncurses5:i386 lib32z1 build-essential \
-    python-dev autoconf dtach vim tmux && \
     apt-get clean
 
 # Install react-native cli
 RUN npm install -g react-native-cli
 
+# Install watchman dependences
+RUN apt-get update -q && \
+    apt-get install -qy --no-install-recommends python-dev autoconf dtach vim tmux libtool automake pkg-config libssl-dev && \
+    apt-get clean
+
 # Install watchman
 ENV WATCHMAN_VERSION v4.9.0
 RUN cd /tmp && git clone https://github.com/facebook/watchman.git
-RUN cd /tmp/watchman && git checkout v4.7.0 && sh ./autogen.sh && ./configure && make && make install && rm -rf /tmp/watchman
+RUN cd /tmp/watchman && git checkout ${WATCHMAN_VERSION} && ./autogen.sh && ./configure && make && make install && rm -rf /tmp/watchman
 
 # Install and setting gradle
 ENV GRADLE_VERSION 4.3
@@ -56,29 +60,33 @@ RUN cd /opt \
     && unzip tools.zip -d ${ANDROID_SDK_HOME} \
     && rm -f tools.zip
 
-RUN echo "y" | android update sdk --no-ui --force -a --filter extra-android-m2repository,extra-android-support,extra-google-m2repository,platform-tools,android-23,build-tools-23.0.1,android-25,build-tools-25
+RUN echo "y" | android update sdk --no-ui --force -a --filter extra-android-m2repository,extra-android-support,extra-google-m2repository,platform-tools,android-23,build-tools-23.0.1,android-25,build-tools-25,android-26,build-tools-26.0.2
 
 RUN echo "export PATH=${PATH}" > /root/.profile
 
 # Android licenses
-RUN mkdir $ANDROID_SDK_HOME/licenses
-RUN echo 8933bad161af4178b1185d1a37fbf41ea5269c55 > $ANDROID_SDK_HOME/licenses/android-sdk-license
-RUN echo 84831b9409646a918e30573bab4c9c91346d8abd > $ANDROID_SDK_HOME/licenses/android-sdk-preview-license
+RUN mkdir ${ANDROID_SDK_HOME}/licenses
+RUN echo 8933bad161af4178b1185d1a37fbf41ea5269c55 > ${ANDROID_SDK_HOME}/licenses/android-sdk-license
+RUN echo 84831b9409646a918e30573bab4c9c91346d8abd > ${ANDROID_SDK_HOME}/licenses/android-sdk-preview-license
 
 # sdk
-RUN opt/tools/android-accept-licenses.sh "$ANDROID_SDK_HOME/tools/bin/sdkmanager \
+ENV ANDROID_SDK_COMPONENTS "${ANDROID_SDK_HOME}/tools/bin/sdkmanager \
     tools \
     \"platform-tools\" \
     \"build-tools;23.0.1\" \
     \"build-tools;23.0.3\" \
     \"build-tools;25.0.1\" \
     \"build-tools;25.0.2\" \
+    \"build-tools;26.0.2\" \
     \"platforms;android-23\" \
     \"platforms;android-25\" \
+    \"platforms;android-26\" \
     \"extras;android;m2repository\" \
     \"extras;google;m2repository\" \
-    \"extras;google;google_play_services\"" \
-    && $ANDROID_SDK_HOME/tools/bin/sdkmanager --update
+    \"extras;google;google_play_services\""
+RUN chmod +x /opt/tools/android-accept-licenses.sh
+RUN ["sh", "-c", "/opt/tools/android-accept-licenses.sh \"${ANDROID_HOME}/tools/android update sdk --no-ui --all --filter ${ANDROID_SDK_COMPONENTS}\""]
+RUN ${ANDROID_SDK_HOME}/tools/bin/sdkmanager --update
 
 COPY entrypoint.sh /
 
